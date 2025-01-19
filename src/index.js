@@ -3,4 +3,4 @@ import {getConnection} from "./database/connection.js"
 //getConnection();
 app.listen(5005)
 
-console.log("Servidor iniciado 2")
+console.log("Servidor iniciado JL")

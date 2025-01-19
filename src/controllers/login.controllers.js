@@ -31,7 +31,7 @@ export const getUser = async (req, res) =>{
     const result = await pool.request()
     .input('user', sql.VarChar, req.params.User)
     .input('password', sql.VarChar, req.params.Pass)
-    .query('SELECT * FROM aspnet_Users WHERE id=@id')
+    .query('SELECT * FROM tbc_Usuarios WHERE id=@id')
     if(result.rowsAffected[0] === 0){
         return res.status(404).json({message:"No encontrado"});
     }
@@ -40,21 +40,199 @@ export const getUser = async (req, res) =>{
 }
 export const setUsuario = async (req, res) =>{
     console.log(req.body)
+    const fechaActual = new Date();
     const pool = await getConnection()
     const result = await pool.request()
-    .input('usuario', sql.VarChar, req.body.usuario)
-    .input('password', sql.VarChar, req.body.password)
-    .input('nombre', sql.VarChar, req.body.nombre)
-    .input('status', sql.NChar, req.body.status)
-    .query('INSERT INTO tbc_Usuario(usuario, password, nombre, status) VALUES (@usuario, @password, @nombre, @status); SELECT SCOPE_IDENTITY() AS id;')
+    .input('usuario', sql.VarChar, req.body.Usuario)
+    .input('password', sql.VarChar, req.body.Password)
+    .input('email', sql.VarChar, req.body.Email)
+    .input('estatus', sql.NChar, req.body.Estatus)
+    .input('last_conexion', sql.DateTime, fechaActual)
+    .query('INSERT INTO tbc_Usuarios(usuario, password, email, estatus, last_conexion)'+
+        ' VALUES (@usuario, @password, @email, @estatus, @last_conexion);'+
+        ' SELECT SCOPE_IDENTITY() AS id;')
     console.log(result)
     res.json({
         id:result.recordset[0].id,
         usuario: req.body.usuario,
-        nombre: req.body.nombre
+        email: req.body.email
     })
 }
+export const setUpdUsuario = async (req, res) =>{
+    console.log(req.body)
+    const fechaActual = new Date();
+    try{
+        const pool = await getConnection()
+        const result = await pool.request()
+        .input('id', sql.Int, req.body.Id)
+        .input('password', sql.VarChar, req.body.Password)
+        .input('email', sql.VarChar, req.body.Email)
+        .input('last_conexion', sql.DateTime, fechaActual)
+        .query(`UPDATE tbc_Usuarios 
+                SET 
+                    password = @password, 
+                    email = @email, 
+                    last_conexion = @last_conexion
+                WHERE id = @id;`)
+            console.log(result)
+            res.json({
+                id: req.body.id,
+                usuario: req.body.Usuario,
+                email: req.body.Email
+            });
+    }catch(error){
+        console.error('Error al actualizar el usuario:', error);
+        res.status(500).json({ message: 'Error al actualizar el usuario' });
+    }
+}
+export const setDelUsuario = async (req, res) =>{
+    console.log(req.body)
+    const fechaActual = new Date();
+    try{
+        const pool = await getConnection()
+        const result = await pool.request()
+        .input('id', sql.Int, req.body.Id)
+        .input('estatus', sql.VarChar, '0')
+        .input('last_conexion', sql.DateTime, fechaActual)
+        .query(`UPDATE tbc_Usuarios 
+                SET 
+                    estatus = @estatus, 
+                    last_conexion = @last_conexion
+                WHERE id = @id;`)
+            console.log(result)
+            res.json({
+                id: req.body.id,
+                mssg: 'Se elimino Correctamente'
+            });
+    }catch(error){
+        console.error('Error al Eliminar el usuario:', error);
+        res.status(500).json({ message: 'Error al actualizar el usuario' });
+    }
+}
+// ============================ USUARIOS ROLES =================================================
+export const setUsuarioRoles = async (req, res) => {
+    const { Rol, Usuario } = req.body;
 
+    // Verificar si los parámetros están presentes en el cuerpo de la solicitud
+    if (!Rol || !Usuario) {
+        return res.status(400).json({ message: 'Faltan parámetros: Rol o Usuario' });
+    }
 
+    try {
+        const pool = await getConnection(); // Obtener conexión a la base de datos
+        const result = await pool.request()
+            .input('Rol', sql.Int, Rol)
+            .input('Usuario', sql.Int, Usuario)
+            .query(`
+                INSERT INTO tb_UsuarioRol(id_usuario, id_rol)
+                VALUES (@Usuario, @Rol);
+                SELECT SCOPE_IDENTITY() AS id;
+            `);
 
+        // Verificar si se obtuvo el ID de la inserción
+        if (result.recordset.length === 0) {
+            return res.status(500).json({ message: 'Error al insertar el registro en la tabla tb_UsuarioRol' });
+        }
 
+        // Responder con el ID del nuevo registro y un mensaje de éxito
+        res.json({
+            id: result.recordset[0].id,
+            message: 'Se agregó correctamente'
+        });
+    } catch (error) {
+        console.error('Error al agregar el rol al usuario:', error);
+        return res.status(500).json({ message: 'Error al procesar la solicitud' });
+    }
+};
+export const delUsuarioRoles = async (req, res) => {
+    const { id } = req.params; // Obtener el id desde los parámetros de la URL
+
+    // Verificar que el id esté presente y sea válido
+    if (!id || isNaN(id)) {
+        return res.status(400).json({ message: 'ID inválido o no proporcionado' });
+    }
+
+    try {
+        const pool = await getConnection(); // Obtener conexión a la base de datos
+
+        // Realizar la eliminación del registro en la tabla tb_UsuarioRol
+        const result = await pool.request()
+            .input('id', sql.Int, id)
+            .query("DELETE FROM tb_UsuarioRol WHERE id = @id"); // Cambia esta consulta a lo que necesites
+
+        // Verificar si se eliminó algún registro
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ message: 'No se encontró el usuario-rol con el id proporcionado' });
+        }
+
+        // Responder con un mensaje de éxito
+        res.json({ message: 'Usuario-rol eliminado correctamente' });
+
+    } catch (error) {
+        console.error('Error al eliminar el usuario-rol:', error);
+        return res.status(500).json({ message: 'Error al procesar la solicitud' });
+    }
+};
+// ============================ USUARIOS PERMISOS =================================================
+export const setUsuarioPermiso = async (req, res) => {
+    const { Permiso, Usuario } = req.body;
+    
+    if (!Permiso || !Usuario) {
+        return res.status(400).json({ message: 'Faltan parámetros: Permisos o Usuario' });
+    }
+
+    try {
+        const pool = await getConnection(); // Obtener conexión a la base de datos
+        const result = await pool.request()
+            .input('Permiso', sql.Int, Permiso)
+            .input('Usuario', sql.Int, Usuario)
+            .query(`
+                INSERT INTO tb_UsuarioPermiso(id_Usuario, id_Permiso)
+                VALUES (@Usuario, @Permiso);
+                SELECT SCOPE_IDENTITY() AS id;
+            `);
+        // Verificar si se obtuvo el ID de la inserción
+        if (result.recordset.length === 0) {
+            return res.status(500).json({ message: 'Error al insertar el registro en la tabla tb_UsuarioPermiso' });
+        }
+
+        // Responder con el ID del nuevo registro y un mensaje de éxito
+        res.json({
+            id: result.recordset[0].id,
+            message: 'Se agregó correctamente'
+        });
+    } catch (error) {
+        console.error('Error al agregar el rol al usuario:', error);
+        return res.status(500).json({ message: 'Error al procesar la solicitud' });
+    }
+};
+export const delUsuarioPermisos = async (req, res) => {
+    const { id } = req.params; // Obtener el id desde los parámetros de la URL
+
+    // Verificar que el id esté presente y sea válido
+    if (!id || isNaN(id)) {
+        return res.status(400).json({ message: 'ID inválido o no proporcionado' });
+    }
+
+    try {
+        const pool = await getConnection(); // Obtener conexión a la base de datos
+
+        // Realizar la eliminación del registro en la tabla tb_UsuarioRol
+        const result = await pool.request()
+            .input('id', sql.Int, id)
+            .query("DELETE FROM tb_UsuarioPermiso WHERE id = @id"); // Cambia esta consulta a lo que necesites
+
+        // Verificar si se eliminó algún registro
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ message: 'No se encontró el usuario-permiso con el id proporcionado' });
+        }
+
+        // Responder con un mensaje de éxito
+        res.json({ message: 'Usuario-Permiso eliminado correctamente' });
+
+    } catch (error) {
+        console.error('Error al eliminar el usuario-Permiso:', error);
+        return res.status(500).json({ message: 'Error al procesar la solicitud' });
+    }
+};
+// ============================ USUARIOS  =================================================
