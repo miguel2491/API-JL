@@ -1,35 +1,33 @@
 import {getConnection} from '../database/connection.js'
 import sql from 'mssql'
 import jwt from 'jsonwebtoken'
-//====================== CRUD PRODUCTO ===============================
-export const setProducto = async (req, res) =>{
+//====================== CRUD TICKETS ===============================
+export const setBitacora = async (req, res) =>{
+    const fechaActual = new Date();
     const pool = await getConnection()
     const result = await pool.request()
-    .input('id_categoria', sql.Int, req.body.id_categoria)
-    .input('id_proveedor', sql.Int, req.body.id_proveedor)
-    .input('nombre', sql.VarChar, req.body.nombre)
-    .input('descripcion', sql.VarChar, req.body.descripcion)
-    .input('precio', sql.Decimal, req.body.precio)
-    .input('cantidad', sql.Decimal, req.body.cantidad)
-    .input('url_img', sql.VarChar, req.body.url_img)
-    .input('estatus', sql.NChar, '1')
-    .query('INSERT INTO tbc_Producto(id_categoria, id_proveedor,nombre,descripcion,precio,cantidad'+
-        ',url_img,estatus)'+
-        ' VALUES (@id_categoria, @id_proveedor, @nombre, @descripcion, @precio, @cantidad,'+
-        'url_img,@estatus);'+
+    .input('modulo', sql.VarChar, req.body.Modulo)
+    .input('accion', sql.VarChar, req.body.Accion)
+    .input('valor_ant', sql.VarChar, req.body.ValorAnt)
+    .input('valor_nue', sql.VarChar, req.body.ValorNue)
+    .input('fecha', sql.DateTime, fechaActual)
+    .input('usuario', sql.NChar, req.body.Usuario)
+    .query('INSERT INTO tb_Historial(modulo,accion,valor_ant,valor_nue,fecha,usuario)'+
+        ' VALUES (@modulo,@accion,@valor_ant,@valor_nue,@fecha,@usuario);'+
         ' SELECT SCOPE_IDENTITY() AS id;')
     res.json({
         id:result.recordset[0].id,
         message:'Se agrego Correctamente'
     })
 }
-export const getProductos = async (req, res) =>{
+export const getBitacoras = async (req, res) =>{
     const pool = await getConnection()    
     const result = await pool.request()
-    .query('SELECT * FROM tbc_Producto')
+    .query("SELECT * FROM tb_Historial")
     if(result.rowsAffected[0] === 0){
         return res.status(404).json({message:"No encontrado"});
     }
+    // Aplicar trim() a los valores de los campos de cada registro
     const trimmedRecords = result.recordset.map(record => {
         // Iterar sobre las propiedades del registro y aplicar trim()
         const trimmedRecord = {};
@@ -43,8 +41,8 @@ export const getProductos = async (req, res) =>{
         return trimmedRecord;
     });
     res.json(trimmedRecords)
-};
-export const getProducto = async (req, res) => {
+}
+export const getBitacoraId = async (req, res) => {
     const { id } = req.params;  // Usar req.params para obtener el id de la URL
 
     // Verificar que el id esté presente y sea un número entero
@@ -55,8 +53,8 @@ export const getProducto = async (req, res) => {
     try {
         const pool = await getConnection();  // Obtener conexión a la base de datos
         const result = await pool.request()
-            .input('id', sql.Int, id)  // Pasar el id como parámetro
-            .query("SELECT * FROM tbc_Producto WHERE id = @id");
+            .input('usuario', sql.Int, id)  // Pasar el id como parámetro
+            .query("SELECT * FROM tbc_Rol WHERE usuario = @usuario");
 
         // Verificar si se encontraron registros
         if (result.recordset.length === 0) {
@@ -80,36 +78,32 @@ export const getProducto = async (req, res) => {
         res.json(trimmedRecords);
 
     } catch (error) {
-        console.error('Error al obtener el rol:', error);
+        console.error('Error:', error);
         return res.status(500).json({ message: 'Error al procesar la solicitud' });
     }
 };
-export const delProducto = async (req, res) => {
-    const { Id } = req.body;  // Desestructuración del id desde el cuerpo de la solicitud
-    
+export const delBitacora = async (req, res) => {
+    const { Id } = req.body;
     if (!Id) {
         return res.status(400).json({ mssg: 'El campo "Id" es obligatorio' });
     }
-
     try {
-        const pool = await getConnection();  // Obtener conexión a la base de datos
+        const pool = await getConnection();
         const result = await pool.request()
-            .input('id', sql.Int, Id)  // Pasar el Id como parámetro
-            .query("UPDATE tbc_Producto SET estatus = '0' WHERE id = @id");  // Actualizar el estatus del permiso
+            .input('id', sql.Int, Id) 
+            .query("DELETE FROM tb_Historial WHERE id = @id");
 
-        // Verificar si se actualizó algún registro
         if (result.rowsAffected[0] === 0) {
-            return res.status(404).json({ mssg: 'No se encontró el permiso con el id proporcionado' });
+            return res.status(404).json({ mssg: 'No se encontró el ROL con el id proporcionado' });
         }
 
-        // Responder con un mensaje de éxito
         res.json({
-            mssg: 'Producto eliminado correctamente',
-            id: Id  // Retornar el id del permiso actualizado
+            mssg: 'Registros eliminado correctamente',
+            id: Id
         });
     } catch (error) {
-        console.error('Error al actualizar permisos:', error);
+        console.error('Error al actualizar Rol:', error);
         return res.status(500).json({ mssg: 'Error al procesar la solicitud' });
     }
 };
-//================================  ============================================================
+// *******************************************************************************************

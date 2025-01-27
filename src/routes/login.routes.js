@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getToken, setUsuario, getUser, setUpdUsuario, setDelUsuario,
-    setUsuarioPermiso, setUsuarioRoles, delUsuarioPermisos, delUsuarioRoles
+    setUsuarioPermiso, setUsuarioRoles, delUsuarioPermisos, delUsuarioRoles,
+    getSesion, updSesion,getUserRol, getUserPermiso
 } from '../controllers/login.controllers.js'
 
 const router = Router()
@@ -11,6 +12,10 @@ router.post('/login', setUsuario)
 router.post('/loginUpdate', setUpdUsuario)
 router.delete('/login', setDelUsuario)
 
+router.post('/getSesion', getSesion);
+router.get('/updSesion/:id', updSesion)
+router.get('/getUsuarioRol/:id', getUserRol)
+router.get('/getUsuarioPermiso/:id', getUserPermiso)
 router.post('/UsuarioRol/',setUsuarioRoles);
 router.post('/UsuarioPermiso/',setUsuarioPermiso);
 router.delete('/UsuarioRol/:id',delUsuarioRoles);

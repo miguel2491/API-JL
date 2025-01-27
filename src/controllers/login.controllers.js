@@ -4,13 +4,13 @@ import jwt from 'jsonwebtoken'
 
 //====================== CREAR TOKENS ===============================
 export const getToken = async(req, res) =>{
-    const user = { id: 1, username: 'catsa2' };
-    const secretKey = 'catsa_E95c2983a6$';
+    const user = { id: 1, username: 'JL' };
+    const secretKey = "julieta_calavera";
     // Crear el token
     const token = jwt.sign(user, secretKey, { expiresIn: '4h' });
     const resu = await getValToken(token, secretKey);
     if(resu === 'Válido'){
-        res.send("Token:"+token)
+        res.send(token)
     }else{
         res.send(resu)
     }
@@ -19,6 +19,9 @@ async function getValToken(token, secretKey){
     return new Promise((resolve, reject) =>{
         jwt.verify(token, secretKey, (err, decoded) => {
             if (err) {
+                resolve('No Válido')
+            }
+            if(secretKey != "julieta_calavera"){
                 resolve('No Válido')
             }
             resolve('Válido')
@@ -236,3 +239,110 @@ export const delUsuarioPermisos = async (req, res) => {
     }
 };
 // ============================ USUARIOS  =================================================
+export const getSesion = async (req, res) => {
+    try {
+        // Log de los parámetros para depuración
+        //console.log(`User: ${req.body.User}, Pass: ${req.body.Pass}`);
+
+        // Construir la consulta SQL
+        //const query = `SELECT * FROM tbc_Usuarios WHERE usuario = '${req.body.User}' AND password = '${req.body.Pass}'`;
+        //console.log("Consulta SQL generada: ", query); // Imprime la consulta generada
+
+        const pool = await getConnection();    
+        const result = await pool.request()
+            .input('User', sql.VarChar, req.body.User) // o req.body.User si usas POST
+            .input('Pass', sql.VarChar, req.body.Pass) // o req.body.Pass si usas POST
+            .query('SELECT * FROM tbc_Usuarios WHERE usuario=@User AND password=@Pass');
+            console.log("RES",result.recordsets[0]);
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ message: "No encontrado" });
+        }
+        
+        console.log(result.recordsets);
+        res.json(result.recordsets[0]);
+    } catch (error) {
+        console.error("Error al ejecutar la consulta", error);
+        res.status(500).json({ message: "Error interno del servidor" });
+    }
+};
+export const updSesion = async (req, res) => {
+    try {
+        const fecha = new Date();
+        //console.log(`User: ${req.params.id}`);
+        // Construir la consulta SQL
+        //const query = `UPDATE tbc_Usuarios SET fecha=@fecha WHERE id = '${req.params.id}'`;
+        //console.log("Consulta SQL generada: ", query); // Imprime la consulta generada
+        const pool = await getConnection();    
+        const result = await pool.request()
+            .input('idUser', sql.VarChar, req.params.id) // o req.body.User si usas POST
+            .input('fecha', sql.DateTime, fecha)
+            .query('UPDATE tbc_Usuarios SET last_conexion=@fecha WHERE id=@idUser');
+            console.log("RES",result.recordsets[0]);
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ message: "No encontrado" });
+        }
+        console.log(result.recordsets);
+        res.json(result.recordsets[0]);
+    } catch (error) {
+        console.error("Error al ejecutar la consulta", error);
+        res.status(500).json({ message: "Error interno del servidor" });
+    }
+};
+export const getUserRol = async (req, res) => {
+    try {
+        // Log de los parámetros para depuración
+        //console.log(`User: ${req.params.id}`);
+
+        // Construir la consulta SQL
+        // const query = `SELECT * FROM tb_UsuarioRol WHERE id_usuario = '${req.params.id}'`;
+        // console.log("Consulta SQL generada: ", query); // Imprime la consulta generada
+
+        const pool = await getConnection();    
+        const result = await pool.request()
+            .input('UserId', sql.Int, req.params.id) // o req.body.User si usas POST
+            .query(`SELECT id_rol, R.Rol as roleName FROM tb_UsuarioRol UR 
+                LEFT JOIN tbc_Rol R ON UR.id_rol = R.id 
+                WHERE UR.id_usuario=@UserId`);
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ message: "No encontrado" });
+        }
+        const trimmedRecords = result.recordset.map(record => {
+            // Iterar sobre las propiedades del registro y aplicar trim()
+            const trimmedRecord = {};
+            for (let key in record) {
+                if (record.hasOwnProperty(key) && typeof record[key] === 'string') {
+                    trimmedRecord[key] = record[key].trim();  // Aplicar trim a las cadenas de texto
+                } else {
+                    trimmedRecord[key] = record[key];  // Mantener los demás campos tal como están
+                }
+            }
+            return trimmedRecord;
+        });
+        res.json(trimmedRecords)
+    } catch (error) {
+        console.error("Error al ejecutar la consulta", error);
+        res.status(500).json({ message: "Error interno del servidor" });
+    }
+};
+export const getUserPermiso = async (req, res) => {
+    try {
+        // Log de los parámetros para depuración
+        //console.log(`User: ${req.body.User}, Pass: ${req.body.Pass}`);
+
+        // Construir la consulta SQL
+        //const query = `SELECT * FROM tbc_Usuarios WHERE usuario = '${req.body.User}' AND password = '${req.body.Pass}'`;
+        //console.log("Consulta SQL generada: ", query); // Imprime la consulta generada
+
+        const pool = await getConnection();    
+        const result = await pool.request()
+            .input('UserId', sql.Int, req.params.id) // o req.body.User si usas POST
+            .query('SELECT * FROM tb_UsuarioPermiso WHERE id_Usuario=@UserId');
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ message: "No encontrado" });
+        }
+        res.json(result.recordsets);
+    } catch (error) {
+        console.error("Error al ejecutar la consulta", error);
+        res.status(500).json({ message: "Error interno del servidor" });
+    }
+};
