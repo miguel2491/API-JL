@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { setRoles, getRoles,getRolId, delRol,
-    getPermisos,  setPermiso,getPermisoId, delPermiso, 
+    getPermisos,  setPermiso,getPermisoId, delPermiso, updatePermiso,
 setCategoria, getCategorias, getCategoria, delCategoria,
-setProveedor, getProveedores, getProveedor, delProveedor 
+setProveedor, getProveedores, getProveedor, delProveedor,
+getVisita, setVisita 
 } from '../controllers/catalogos.controllers.js'
 
 const router = Router()
@@ -23,8 +24,13 @@ router.post('/rol', setRoles);
 router.delete('/rol/:id', delRol);
 //PERMISOS
 router.get('/permisos', getPermisos);
-router.post('/permiso', setPermiso)
+router.post('/permiso', setPermiso);
+router.put('/permiso', updatePermiso);
 router.get('/permisos/:id', getPermisoId);
 router.delete('/permisos/:id', delPermiso);
-
+//======================= MAPA =============================================================
+router.get('/visitas/:id/:usuario', getVisita);
+router.post('/visitas', setVisita);
+//==========================================================================================
 export default router
+//==========================================================================================

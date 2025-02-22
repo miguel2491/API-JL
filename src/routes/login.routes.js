@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getToken, setUsuario, getUser, setUpdUsuario, setDelUsuario,
+import { getToken, setUsuario, getUser, getUsuarios, setUpdUsuario, setDelUsuario,
     setUsuarioPermiso, setUsuarioRoles, delUsuarioPermisos, delUsuarioRoles,
     getSesion, updSesion,getUserRol, getUserPermiso
 } from '../controllers/login.controllers.js'
@@ -7,6 +7,7 @@ import { getToken, setUsuario, getUser, setUpdUsuario, setDelUsuario,
 const router = Router()
 
 router.get('/token', getToken);
+router.get('/usuarios', getUsuarios)
 router.get('/login/:id', getUser)
 router.post('/login', setUsuario)
 router.post('/loginUpdate', setUpdUsuario)

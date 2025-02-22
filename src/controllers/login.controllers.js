@@ -29,6 +29,28 @@ async function getValToken(token, secretKey){
     });
 }
 //------------------ USUARIO ---------------------------------
+export const getUsuarios = async (req, res) =>{
+    const pool = await getConnection()    
+    const result = await pool.request()
+    .query('SELECT * FROM tbc_Usuarios')
+    if(result.rowsAffected[0] === 0){
+        return res.status(404).json({message:"No encontrado"});
+    }
+    // Aplicar trim() a los valores de los campos de cada registro
+    const trimmedRecords = result.recordset.map(record => {
+        // Iterar sobre las propiedades del registro y aplicar trim()
+        const trimmedRecord = {};
+        for (let key in record) {
+            if (record.hasOwnProperty(key) && typeof record[key] === 'string') {
+                trimmedRecord[key] = record[key].trim();  // Aplicar trim a las cadenas de texto
+            } else {
+                trimmedRecord[key] = record[key];  // Mantener los demás campos tal como están
+            }
+        }
+        return trimmedRecord;
+    });
+    res.json(trimmedRecords)
+}
 export const getUser = async (req, res) =>{
     const pool = await getConnection()    
     const result = await pool.request()
@@ -42,7 +64,6 @@ export const getUser = async (req, res) =>{
     res.json(result.recordset[0])
 }
 export const setUsuario = async (req, res) =>{
-    console.log(req.body)
     const fechaActual = new Date();
     const pool = await getConnection()
     const result = await pool.request()
@@ -114,36 +135,47 @@ export const setDelUsuario = async (req, res) =>{
 }
 // ============================ USUARIOS ROLES =================================================
 export const setUsuarioRoles = async (req, res) => {
-    const { Rol, Usuario } = req.body;
-
-    // Verificar si los parámetros están presentes en el cuerpo de la solicitud
-    if (!Rol || !Usuario) {
-        return res.status(400).json({ message: 'Faltan parámetros: Rol o Usuario' });
-    }
-
+    const { IdRol, IdUsuario, IdUsuarioRol } = req.body;
     try {
         const pool = await getConnection(); // Obtener conexión a la base de datos
-        const result = await pool.request()
-            .input('Rol', sql.Int, Rol)
-            .input('Usuario', sql.Int, Usuario)
-            .query(`
-                INSERT INTO tb_UsuarioRol(id_usuario, id_rol)
-                VALUES (@Usuario, @Rol);
-                SELECT SCOPE_IDENTITY() AS id;
-            `);
-
-        // Verificar si se obtuvo el ID de la inserción
-        if (result.recordset.length === 0) {
-            return res.status(500).json({ message: 'Error al insertar el registro en la tabla tb_UsuarioRol' });
+        let result;
+        if (IdUsuarioRol === 0) {
+            // Insertar nuevo registro
+            result = await pool.request()
+                .input('id_usuario', sql.Int, IdUsuario)
+                .input('id_rol', sql.Int, IdRol)
+                .query(`
+                    INSERT INTO tb_UsuarioRol(id_usuario, id_rol)
+                    VALUES (@id_usuario, @id_rol);
+                    SELECT SCOPE_IDENTITY() AS id;
+                `);
+        } else {
+            // Actualizar registro existente
+            result = await pool.request()
+                .input('id', sql.Int, IdUsuarioRol)
+                .input('Rol', sql.Int, IdRol)
+                .input('Usuario', sql.Int, IdUsuario)
+                .query(`
+                    UPDATE tb_UsuarioRol 
+                    SET id_usuario = @Usuario, id_rol = @Rol
+                    WHERE id = @id;
+                    SELECT id FROM tb_UsuarioRol WHERE id = @id; -- Aseguramos de obtener el ID actualizado
+                `);
+        }
+        // Asegurarse de que `result.recordset` existe y tiene al menos un registro
+        if (!result.recordset || result.recordset.length === 0) {
+            return res.status(500).json({ message: 'Error al insertar o actualizar el registro en tb_UsuarioRol' });
         }
 
-        // Responder con el ID del nuevo registro y un mensaje de éxito
+        // Si es una inserción, devolver el ID generado
+        const id = result.recordset[0].id || result.recordset[0]['SCOPE_IDENTITY()']; // Accedemos al ID dependiendo de la consulta
         res.json({
-            id: result.recordset[0].id,
-            message: 'Se agregó correctamente'
+            id,
+            message: IdUsuarioRol === 0 ? 'Se agregó correctamente' : 'Se actualizó correctamente'
         });
+
     } catch (error) {
-        console.error('Error al agregar el rol al usuario:', error);
+        console.error('Error al agregar/actualizar rol al usuario:', error);
         return res.status(500).json({ message: 'Error al procesar la solicitud' });
     }
 };
@@ -178,37 +210,52 @@ export const delUsuarioRoles = async (req, res) => {
 };
 // ============================ USUARIOS PERMISOS =================================================
 export const setUsuarioPermiso = async (req, res) => {
-    const { Permiso, Usuario } = req.body;
-    
-    if (!Permiso || !Usuario) {
-        return res.status(400).json({ message: 'Faltan parámetros: Permisos o Usuario' });
-    }
-
+    const { IdPermiso, IdUsuario, idUsuarioPermiso } = req.body;
     try {
         const pool = await getConnection(); // Obtener conexión a la base de datos
-        const result = await pool.request()
-            .input('Permiso', sql.Int, Permiso)
-            .input('Usuario', sql.Int, Usuario)
-            .query(`
-                INSERT INTO tb_UsuarioPermiso(id_Usuario, id_Permiso)
-                VALUES (@Usuario, @Permiso);
-                SELECT SCOPE_IDENTITY() AS id;
-            `);
-        // Verificar si se obtuvo el ID de la inserción
-        if (result.recordset.length === 0) {
-            return res.status(500).json({ message: 'Error al insertar el registro en la tabla tb_UsuarioPermiso' });
+        let result;
+        if (idUsuarioPermiso === 0) {
+            // Insertar nuevo registro
+            result = await pool.request()
+                .input('Permiso', sql.Int, IdPermiso)
+                .input('Usuario', sql.Int, IdUsuario)
+                .query(`
+                    INSERT INTO tb_UsuarioPermiso(id_Usuario, id_Permiso)
+                    VALUES (@Usuario, @Permiso);
+                    SELECT SCOPE_IDENTITY() AS id;
+                `);
+        } else {
+            // Actualizar registro existente
+            result = await pool.request()
+                .input('id', sql.Int, idUsuarioPermiso)
+                .input('Permiso', sql.Int, IdPermiso)
+                .input('Usuario', sql.Int, IdUsuario)
+                .query(`
+                    UPDATE tb_UsuarioPermiso 
+                    SET id_Usuario = @Usuario, id_Permiso = @Permiso
+                    WHERE id = @id;
+                    SELECT id FROM tb_UsuarioPermiso WHERE id = @id; -- Aseguramos de obtener el ID actualizado
+                `);
+        }
+        // Asegurarse de que `result.recordset` existe y tiene al menos un registro
+        if (!result.recordset || result.recordset.length === 0) {
+            return res.status(500).json({ message: 'Error al insertar o actualizar el registro en tb_UsuarioPermiso' });
         }
 
-        // Responder con el ID del nuevo registro y un mensaje de éxito
+        // Si es una inserción, devolver el ID generado
+        const id = result.recordset[0].id || result.recordset[0]['SCOPE_IDENTITY()']; // Accedemos al ID dependiendo de la consulta
         res.json({
-            id: result.recordset[0].id,
-            message: 'Se agregó correctamente'
+            id,
+            message: idUsuarioPermiso === 0 ? 'Se agregó correctamente' : 'Se actualizó correctamente'
         });
+
     } catch (error) {
-        console.error('Error al agregar el rol al usuario:', error);
+        console.error('Error al agregar/actualizar permiso al usuario:', error);
         return res.status(500).json({ message: 'Error al procesar la solicitud' });
     }
 };
+
+
 export const delUsuarioPermisos = async (req, res) => {
     const { id } = req.params; // Obtener el id desde los parámetros de la URL
 
@@ -277,12 +324,10 @@ export const updSesion = async (req, res) => {
             .input('idUser', sql.VarChar, req.params.id) // o req.body.User si usas POST
             .input('fecha', sql.DateTime, fecha)
             .query('UPDATE tbc_Usuarios SET last_conexion=@fecha WHERE id=@idUser');
-            console.log("RES",result.recordsets[0]);
         if (result.rowsAffected[0] === 0) {
             return res.status(404).json({ message: "No encontrado" });
         }
-        console.log(result.recordsets);
-        res.json(result.recordsets[0]);
+        res.json(result.rowsAffected);
     } catch (error) {
         console.error("Error al ejecutar la consulta", error);
         res.status(500).json({ message: "Error interno del servidor" });
@@ -300,7 +345,7 @@ export const getUserRol = async (req, res) => {
         const pool = await getConnection();    
         const result = await pool.request()
             .input('UserId', sql.Int, req.params.id) // o req.body.User si usas POST
-            .query(`SELECT id_rol, R.Rol as roleName FROM tb_UsuarioRol UR 
+            .query(`SELECT UR.id, UR.id_rol, UR.id_usuario, R.Rol as roleName FROM tb_UsuarioRol UR 
                 LEFT JOIN tbc_Rol R ON UR.id_rol = R.id 
                 WHERE UR.id_usuario=@UserId`);
         if (result.rowsAffected[0] === 0) {
@@ -336,11 +381,26 @@ export const getUserPermiso = async (req, res) => {
         const pool = await getConnection();    
         const result = await pool.request()
             .input('UserId', sql.Int, req.params.id) // o req.body.User si usas POST
-            .query('SELECT * FROM tb_UsuarioPermiso WHERE id_Usuario=@UserId');
-        if (result.rowsAffected[0] === 0) {
-            return res.status(404).json({ message: "No encontrado" });
-        }
-        res.json(result.recordsets);
+            .query('SELECT UP.*, P.Permiso FROM tb_UsuarioPermiso UP'+
+                ' LEFT JOIN tbc_Permisos P ON UP.id_Permiso = P.id '+
+                ' WHERE UP.id_Usuario=@UserId');
+            if(result.rowsAffected[0] === 0){
+                return res.status(404).json({message:"No encontrado"});
+            }
+            // Aplicar trim() a los valores de los campos de cada registro
+            const trimmedRecords = result.recordset.map(record => {
+                // Iterar sobre las propiedades del registro y aplicar trim()
+                const trimmedRecord = {};
+                for (let key in record) {
+                    if (record.hasOwnProperty(key) && typeof record[key] === 'string') {
+                        trimmedRecord[key] = record[key].trim();  // Aplicar trim a las cadenas de texto
+                    } else {
+                        trimmedRecord[key] = record[key];  // Mantener los demás campos tal como están
+                    }
+                }
+                return trimmedRecord;
+            });
+            res.json(trimmedRecords)
     } catch (error) {
         console.error("Error al ejecutar la consulta", error);
         res.status(500).json({ message: "Error interno del servidor" });
