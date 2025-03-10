@@ -354,19 +354,46 @@ export const delCategoria = async (req, res) => {
 };
 //====================== CRUD PROVEEDOR ===============================
 export const setProveedor = async (req, res) =>{
-    const pool = await getConnection()
-    const result = await pool.request()
-    .input('id_categoria', sql.Int, req.body.id_categoria)
-    .input('nombre', sql.VarChar, req.body.nombre)
-    .input('ubicacion', sql.VarChar, req.body.ubicacion)
-    .input('estatus', sql.NChar, '1')
-    .query('INSERT INTO tbc_Proveedor(id_categoria,nombre, ubicacion,estatus)'+
-        ' VALUES (@id_categoria, @nombre, @ubicacion, @estatus);'+
-        ' SELECT SCOPE_IDENTITY() AS id;')
-    res.json({
-        id:result.recordset[0].id,
-        message:'Se agrego Correctamente'
-    })
+    const { id } = req.body;
+    try{
+        const pool = await getConnection()
+        let result;
+        let idd = req.body.id;
+        console.log("===>"+idd)
+        if (idd === 0) {
+            result = await pool.request()
+            .input('id_categoria', sql.Int, req.body.id_categoria)
+            .input('nombre', sql.VarChar, req.body.nombre)
+            .input('ubicacion', sql.VarChar, req.body.ubicacion)
+            .input('estatus', sql.NChar, req.body.estatus)
+            .query('INSERT INTO tbc_Proveedor(id_categoria,nombre, ubicacion,estatus)'+
+                ' VALUES (@id_categoria, @nombre, @ubicacion, @estatus);'+
+                ' SELECT SCOPE_IDENTITY() AS id;')
+        }else{
+            result = await pool.request()
+            .input('id', sql.Int, req.body.id)
+            .input('id_categoria', sql.Int, req.body.id_categoria)
+            .input('nombre', sql.VarChar, req.body.nombre)
+            .input('ubicacion', sql.VarChar, req.body.ubicacion)
+            .input('estatus', sql.NChar, req.body.estatus)
+            .query('UPDATE tbc_Proveedor SET id_categoria=@id_categoria, nombre=@nombre,'+
+                ' ubicacion=@ubicacion, estatus=@estatus '+
+                ' WHERE id = @id SELECT id FROM tb_Almacen WHERE id = @id;')
+        }
+        if (!result.recordset || result.recordset.length === 0) {
+            return res.status(500).json({ message: 'Error al insertar o actualizar el registro en tb_UsuarioRol' });
+        }
+    
+        // Si es una inserción, devolver el ID generado
+        const id_ = result.recordset[0].id || result.recordset[0]['SCOPE_IDENTITY()']; // Accedemos al ID dependiendo de la consulta
+        res.json({
+            id_,
+            message: id === 0 ? 'Se agregó correctamente' : 'Se actualizó correctamente'
+        });
+    }catch(error){
+        console.error('Error al agregar/actualizar:', error);
+        return res.status(500).json({ message: 'Error al procesar la solicitud' });
+    }
 }
 export const getProveedores = async (req, res) =>{
     const pool = await getConnection()    
@@ -475,23 +502,33 @@ export const setProductos = async (req, res) =>{
         if (idd === 0) {
             result = await pool.request()
             .input('id_categoria', sql.Int, req.body.id_categoria)
+            .input('id_proveedor', sql.Int, req.body.id_proveedor)
             .input('nombre', sql.VarChar, req.body.nombre)
-            .input('ubicacion', sql.VarChar, req.body.ubicacion)
-            .input('estatus', sql.NChar, '1')
-            .query('INSERT INTO tbc_Categoria(nombre, estatus)'+
-                ' VALUES (@nombre, @estatus);'+
+            .input('descripcion', sql.VarChar, req.body.descripcion)
+            .input('precio', sql.Decimal, req.body.precio)
+            .input('cantidad', sql.Decimal, req.body.cantidad)
+            .input('estatus', sql.NChar, req.body.estatus)
+            .query('INSERT INTO tbc_Producto(id_categoria, id_proveedor,nombre, descripcion, precio, cantidad,estatus)'+
+                ' VALUES (@id_categoria, @id_proveedor, @nombre, @descripcion, @precio, @cantidad, @estatus);'+
                 ' SELECT SCOPE_IDENTITY() AS id;')
         }else{
             console.log(idd)
             result = await pool.request()
             .input('id', sql.Int, req.body.id)
+            .input('id_categoria', sql.Int, req.body.id_categoria)
+            .input('id_proveedor', sql.Int, req.body.id_proveedor)
             .input('nombre', sql.VarChar, req.body.nombre)
+            .input('descripcion', sql.VarChar, req.body.descripcion)
+            .input('precio', sql.Decimal, req.body.precio)
+            .input('cantidad', sql.Decimal, req.body.cantidad)
             .input('estatus', sql.NChar, req.body.estatus)
             .query(`
-                UPDATE tbc_Categoria 
-                SET nombre = @nombre, estatus = @estatus
+                UPDATE tbc_Producto 
+                SET id_categoria=@id_categoria, id_proveedor=@id_proveedor,
+                nombre = @nombre, descripcion=@descripcion, precio=@precio,
+                cantidad=@cantidad, estatus = @estatus
                 WHERE id = @id;
-                SELECT id FROM tbc_Categoria WHERE id = @id; -- Aseguramos de obtener el ID actualizado
+                SELECT id FROM tb_Producto WHERE id = @id;
             `);
         }
         if (!result.recordset || result.recordset.length === 0) {
@@ -512,7 +549,7 @@ export const setProductos = async (req, res) =>{
 export const getProductos = async (req, res) =>{
     const pool = await getConnection()    
     const result = await pool.request()
-    .query('SELECT * FROM tbc_Categoria')
+    .query('SELECT * FROM tbc_Producto')
     if(result.rowsAffected[0] === 0){
         return res.status(404).json({message:"No encontrado"});
     }
@@ -542,7 +579,7 @@ export const getProductosId = async (req, res) => {
         const pool = await getConnection();  // Obtener conexión a la base de datos
         const result = await pool.request()
             .input('id', sql.Int, id)  // Pasar el id como parámetro
-            .query("SELECT * FROM tbc_Categoria WHERE id = @id");
+            .query("SELECT * FROM tbc_Producto WHERE id = @id");
 
         // Verificar si se encontraron registros
         if (result.recordset.length === 0) {
@@ -581,7 +618,7 @@ export const delProductos = async (req, res) => {
         const pool = await getConnection();  // Obtener conexión a la base de datos
         const result = await pool.request()
             .input('id', sql.Int, id)  // Pasar el Id como parámetro
-            .query("UPDATE tbc_Categoria SET estatus = '0' WHERE id = @id");  // Actualizar el estatus del permiso
+            .query("UPDATE tbc_Producto SET estatus = '0' WHERE id = @id");  // Actualizar el estatus del permiso
 
         // Verificar si se actualizó algún registro
         if (result.rowsAffected[0] === 0) {
@@ -590,11 +627,11 @@ export const delProductos = async (req, res) => {
 
         // Responder con un mensaje de éxito
         res.json({
-            mssg: 'Permiso eliminado correctamente',
+            mssg: 'Eliminado correctamente',
             id: id  // Retornar el id del permiso actualizado
         });
     } catch (error) {
-        console.error('Error al actualizar permisos:', error);
+        console.error('Error al actualizar:', error);
         return res.status(500).json({ mssg: 'Error al procesar la solicitud' });
     }
 };

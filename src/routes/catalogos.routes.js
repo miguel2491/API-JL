@@ -3,7 +3,7 @@ import { setRoles, getRoles,getRolId, delRol,
     getPermisos,  setPermiso,getPermisoId, delPermiso, updatePermiso,
 setCategoria, getCategorias, getCategoria, delCategoria,
 setProveedor, getProveedores, getProveedor, delProveedor,
-getVisita, setVisita 
+getVisita, setVisita, getProductos, getProductosId, setProductos, delProductos 
 } from '../controllers/catalogos.controllers.js'
 
 const router = Router()
@@ -17,6 +17,12 @@ router.get('/proveedores', getProveedores);
 router.get('/proveedor/:id', getProveedor);
 router.post('/proveedor', setProveedor);
 router.delete('/proveedor/:id', delProveedor);
+//PRODUCTOS
+router.get('/productos', getProductos);
+router.post('/producto', setProductos);
+router.put('/producto', setProductos);
+router.get('/producto/:id', getProductosId);
+router.delete('/producto/:id', delProductos);
 //ROLES
 router.get('/roles', getRoles);
 router.get('/rol/:id', getRolId);
